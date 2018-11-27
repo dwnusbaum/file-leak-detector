@@ -374,7 +374,9 @@ public class Listener {
     }
 
     public static synchronized void setContextClassLoader(Thread t, ClassLoader cl) {
-        put(Thread.currentThread(), new ClassLoaderRecord(t, cl));
+        if (t.getName().contains("SynchronousNonBlockingStepExecution")) {
+            put(Thread.currentThread(), new ClassLoaderRecord(t, cl));
+        }
     }
     
     public static synchronized List<Record> getCurrentOpenFiles() {

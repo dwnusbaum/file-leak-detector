@@ -28,6 +28,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.kohsuke.file_leak_detector.Listener;
 
@@ -49,6 +50,7 @@ public class SetContextClassLoaderDemo {
     }
 
     @Test
+    @Ignore("Current only logging calls from the SynchronousNonBlockingStepExecution thread pool")
     public void setClassLoader() throws Exception {
         final Thread t = Thread.currentThread();
         ClassLoader old = t.getContextClassLoader();
