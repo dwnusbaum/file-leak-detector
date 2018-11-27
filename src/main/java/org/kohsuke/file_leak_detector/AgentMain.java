@@ -25,6 +25,7 @@ import java.nio.channels.spi.AbstractInterruptibleChannel;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.nio.channels.spi.AbstractSelector;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -49,6 +50,8 @@ import org.kohsuke.file_leak_detector.transform.TransformerImpl;
  */
 @SuppressWarnings("Since15")
 public class AgentMain {
+    private static boolean onlyTransformCallsToSetCCL = false;
+
     public static void agentmain(String agentArguments, Instrumentation instrumentation) throws Exception {
         premain(agentArguments,instrumentation);
     }
@@ -68,6 +71,9 @@ public class AgentMain {
                     usage();
                     if (quit)   System.exit(-1);
                     else        return;
+                } else
+                if (t.equals("ccl")) {
+                    onlyTransformCallsToSetCCL = true;
                 } else
                 if(t.startsWith("threshold=")) {
                     Listener.THRESHOLD = Integer.parseInt(t.substring(t.indexOf('=')+1));
@@ -143,7 +149,8 @@ public class AgentMain {
                 AbstractSelectableChannel.class,
                 AbstractInterruptibleChannel.class,
                 FileChannel.class,
-                AbstractSelector.class
+                AbstractSelector.class,
+                Thread.class
                 );
 
 
@@ -201,6 +208,7 @@ public class AgentMain {
         System.err.println("  help          - show the help screen.");
         System.err.println("  trace         - log every open/close operation to stderr.");
         System.err.println("  trace=FILE    - log every open/close operation to the given file.");
+        System.err.println("  ccl           - Log calls to Thread.setContextClassLoader where the class loader is null.");
         System.err.println("  error=FILE    - if 'too many open files' error is detected, send the dump here.");
         System.err.println("                  by default it goes to stderr.");
         System.err.println("  threshold=N   - instead of waiting until 'too many open files', dump once");
@@ -215,7 +223,13 @@ public class AgentMain {
     }
 
     static List<ClassTransformSpec> createSpec() {
-        return Arrays.asList(
+        if (onlyTransformCallsToSetCCL) {
+            return Arrays.asList(
+                new ClassTransformSpec(Thread.class,
+                    new SetContextClassLoaderInterceptor())
+            );
+        } else {
+            return Arrays.asList(
             newSpec(FileOutputStream.class, "(Ljava/io/File;Z)V"),
             newSpec(FileInputStream.class, "(Ljava/io/File;)V"),
             newSpec(RandomAccessFile.class, "(Ljava/io/File;Ljava/lang/String;)V"),
@@ -279,6 +293,7 @@ public class AgentMain {
                     new CloseInterceptor("kill")
             )
         );
+        }
     }
 
     /**
@@ -531,5 +546,20 @@ public class AgentMain {
             // restore the stack so that the ARETURN has something to return
             g.aload(returnLocalVarIndex);
         }
+    }
+
+    private static class SetContextClassLoaderInterceptor extends MethodAppender {
+
+        public SetContextClassLoaderInterceptor() {
+            super("setContextClassLoader", "(Ljava/lang/ClassLoader;)V");
+        }
+
+        @Override
+        protected void append(CodeGenerator g) {
+            // Oth local is `this` for instance methods. 1st local is the first method argument, which is the class loader.
+            int[] indices = new int[] { 0, 1 };
+            g.invokeAppStatic(Listener.class, "setContextClassLoader", new Class<?>[] { Thread.class, ClassLoader.class }, indices);
+        }
+
     }
 }

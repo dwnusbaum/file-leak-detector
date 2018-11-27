@@ -228,6 +228,25 @@ public class Listener {
         }
     }
 
+    public static final class ClassLoaderRecord extends Record {
+        public final String setOnThreadName;
+        public final String classLoaderName;
+
+        private ClassLoaderRecord(Thread t, ClassLoader loader) {
+            this.setOnThreadName = t.getName();
+            this.classLoaderName = loader == null ? null : loader.toString();
+        }
+
+        public void dump(String prefix, PrintWriter ps) {
+            if (setOnThreadName.equals(threadName)) {
+                ps.println("Set context class loader to:"+classLoaderName+" on thread:"+setOnThreadName+" at "+format(time));
+            } else {
+                ps.println("Set context class loader to:"+classLoaderName+" on thread:"+setOnThreadName+" by thread:"+super.threadName+" at "+format(time));
+            }
+            super.dump(prefix,ps);
+        }
+    }
+
     /**
      * Files that are currently open, keyed by the owner object (like {@link FileInputStream}.
      */
@@ -352,6 +371,10 @@ public class Listener {
                 al.openSocket(_this);
             }
         }
+    }
+
+    public static synchronized void setContextClassLoader(Thread t, ClassLoader cl) {
+        put(Thread.currentThread(), new ClassLoaderRecord(t, cl));
     }
     
     public static synchronized List<Record> getCurrentOpenFiles() {

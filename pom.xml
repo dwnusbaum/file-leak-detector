@@ -53,9 +53,28 @@
             </includes>
             <excludes>
               <exclude>**/TransformerTest.java</exclude>
+              <exclude>**/instrumented/SetContextClassLoaderDemo.java</exclude>
             </excludes>
             <argLine>
               -javaagent:"${project.build.directory}/file-leak-detector-${project.version}-jar-with-dependencies.jar"
+            </argLine>
+          </configuration>
+        </execution>
+        <execution>
+          <id>instrumented-classloader-tests</id>
+          <phase>integration-test</phase>
+          <goals>
+            <goal>test</goal>
+          </goals>
+          <configuration>
+            <reuseForks>false</reuseForks>
+            <includes>
+              <include>
+                **/instrumented/SetContextClassLoaderDemo.java
+              </include>
+            </includes>
+            <argLine>
+              -javaagent:"${project.build.directory}/file-leak-detector-${project.version}-jar-with-dependencies.jar=ccl"
             </argLine>
           </configuration>
         </execution>
